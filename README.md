@@ -93,7 +93,7 @@ RiceMambaOpt/
 └── README.md
 ```
 
-The package directories are intentionally empty placeholders. Model implementation and experimental data are not included in this release.
+The repository now includes a dependency-light public utility layer for validated process records, multi-target metrics, named feasibility constraints, and normalized inverse-design objectives, with unit tests and CI. The trained TabDDPM/MoE-Mamba models, checkpoints, and experimental data are not included in this release.
 
 <details>
 <summary><b>Citation</b></summary>
