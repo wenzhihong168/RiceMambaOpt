@@ -17,13 +17,26 @@ RiceMambaOpt links cultivar-aware quality prediction with process-feasibility-co
 
 ## At a glance
 
-| Process inputs | Forward model | Predicted targets | Inverse output |
-|:---|:---|:---|:---|
-| Cultivar · milling time · speed | TabDDPM + MoE–Mamba | 9 physicochemical, digestibility, and sensory attributes | Feasible time–speed recommendations |
+<table align="center">
+  <tr align="center">
+    <th>Process inputs</th><th>Forward model</th><th>Predicted targets</th><th>Inverse output</th>
+  </tr>
+  <tr align="center">
+    <td>Cultivar · milling time · speed</td>
+    <td>TabDDPM + MoE–Mamba</td>
+    <td>9 physicochemical, digestibility,<br>and sensory attributes</td>
+    <td>Feasible time–speed<br>recommendations</td>
+  </tr>
+</table>
 
-| Original samples | Development set | Independent holdout | Prospective validation |
-|:---:|:---:|:---:|:---:|
-| **500** | **400** | **100** | **12 profiles · 36 samples** |
+<table align="center">
+  <tr align="center">
+    <th>Original samples</th><th>Development set</th><th>Independent holdout</th><th>Prospective validation</th>
+  </tr>
+  <tr align="center">
+    <td><b>500</b></td><td><b>400</b></td><td><b>100</b></td><td><b>12 profiles · 36 samples</b></td>
+  </tr>
+</table>
 
 ## Model design
 
@@ -37,52 +50,97 @@ RiceMambaOpt links cultivar-aware quality prediction with process-feasibility-co
 
 ## Architecture
 
+RiceMambaOpt couples two directions in a single framework: a cultivar-aware MoE–Mamba predicts nine quality attributes from processing conditions, and a constrained optimizer searches backward from desired quality to executable milling parameters.
+
 <p align="center">
-  <img src="assets/architecture.png" width="880" alt="RiceMambaOpt architecture">
+  <img src="assets/architecture.png" width="880" alt="RiceMambaOpt architecture"><br>
+  <sub>Figure 4. Forward quality prediction and constrained inverse design.</sub>
 </p>
 
 ## Published results
 
-| Mean R² | Holdout time recovery | Prospective target attainment | Joint nRMSE |
-|:---:|:---:|:---:|:---:|
-| **0.975 ± 0.008** | **R² 0.986 · MAE 0.960 s** | **10/12 profiles** | **6.2 ± 1.1%** |
+<table align="center">
+  <tr align="center">
+    <th>Mean R²</th><th>Holdout time recovery</th><th>Prospective target attainment</th><th>Joint nRMSE</th>
+  </tr>
+  <tr align="center">
+    <td><b>0.975 ± 0.008</b></td><td><b>R² 0.986 · MAE 0.960 s</b></td><td><b>10/12 profiles</b></td><td><b>6.2 ± 1.1%</b></td>
+  </tr>
+</table>
 
-| Model | Mean R² ± SD |
-|:---|:---:|
-| Shared MLP | 0.838 ± 0.026 |
-| Transformer | 0.911 ± 0.016 |
-| Mamba without MoE | 0.949 ± 0.012 |
-| MoE-MLP without Mamba | 0.956 ± 0.011 |
-| **RiceMambaOpt** | **0.975 ± 0.008** |
+<table align="center">
+  <tr align="center"><th>Model</th><th>Mean R² ± SD</th></tr>
+  <tr align="center"><td>Shared MLP</td><td>0.838 ± 0.026</td></tr>
+  <tr align="center"><td>Transformer</td><td>0.911 ± 0.016</td></tr>
+  <tr align="center"><td>Mamba without MoE</td><td>0.949 ± 0.012</td></tr>
+  <tr align="center"><td>MoE-MLP without Mamba</td><td>0.956 ± 0.011</td></tr>
+  <tr align="center"><td><b>RiceMambaOpt</b></td><td><b>0.975 ± 0.008</b></td></tr>
+</table>
+
+### Data structure and augmentation
+
+The correlation map summarizes how milling time, speed, and cultivar relate to physicochemical, digestibility, and sensory outcomes. It provides the empirical basis for treating the task as a coupled multi-output problem.
 
 <p align="center">
-  <img src="assets/pareto-frontier.png" width="760" alt="RiceMambaOpt Pareto frontier">
+  <img src="assets/process-quality-correlation.png" width="780" alt="Process-quality correlation matrix"><br>
+  <sub>Figure 2. Global correlation structure between process parameters and quality indicators.</sub>
+</p>
+
+TabDDPM is evaluated by comparing the joint structure of real and augmented observations. The visualization checks whether augmentation expands coverage without erasing cultivar-specific clusters.
+
+<p align="center">
+  <img src="assets/augmentation-consistency.png" width="860" alt="Real and augmented data consistency"><br>
+  <sub>Figure 3. Distributional consistency of real and augmented data.</sub>
 </p>
 
 ### Forward prediction
 
-<table>
-  <tr>
-    <td width="50%"><img src="assets/process-quality-correlation.png" alt="Process-quality correlation matrix"></td>
-    <td width="50%"><img src="assets/augmentation-consistency.png" alt="Real and augmented data consistency"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="assets/model-comparison.png" alt="Forward-model comparison"></td>
-    <td width="50%"><img src="assets/forward-prediction.png" alt="Forward prediction and error distributions"></td>
-  </tr>
-</table>
+Across nine targets, the proposed model improves the mean coefficient of determination over MLP, Transformer, and ablated Mamba/MoE variants. The comparison isolates the contribution of selective state-space modeling and cultivar-aware routing.
+
+<p align="center">
+  <img src="assets/model-comparison.png" width="900" alt="Forward-model comparison"><br>
+  <sub>Figure 5. Model-wise R² across nine quality indicators.</sub>
+</p>
+
+Predicted-versus-observed plots and residual distributions provide a target-level view of calibration and error spread. This complements the aggregate mean R² with the behavior of individual physicochemical and sensory outputs.
+
+<p align="center">
+  <img src="assets/forward-prediction.png" width="900" alt="Forward prediction and error distributions"><br>
+  <sub>Figure 6. Forward fitting and error distributions.</sub>
+</p>
 
 ### Inverse design
 
-<table>
-  <tr>
-    <td width="50%"><img src="assets/inverse-agreement.png" alt="Inverse-prediction agreement"></td>
-    <td width="50%"><img src="assets/constraint-feasibility.png" alt="Physical-constraint feasibility map"></td>
-  </tr>
-</table>
+The Pareto frontier makes the trade-off between rapidly digestible starch and palatability explicit. Rather than returning a single unconstrained optimum, the model identifies a physically meaningful balance region for the Qiuguang cultivar.
 
 <p align="center">
-  <img src="assets/reverse-shap.png" width="920" alt="Cultivar-specific reverse SHAP analysis">
+  <img src="assets/pareto-frontier.png" width="700" alt="RiceMambaOpt Pareto frontier"><br>
+  <sub>Figure 7. RDS–palatability Pareto frontier.</sub>
+</p>
+
+Holdout recovery compares inferred milling settings with their experimental counterparts. Agreement and error distributions show strong recovery of milling time and a wider, but equipment-compatible, tolerance for milling speed.
+
+<p align="center">
+  <img src="assets/inverse-agreement.png" width="860" alt="Inverse-prediction agreement"><br>
+  <sub>Figure 8. Agreement analysis for inverse recovery of time and speed.</sub>
+</p>
+
+### Physical feasibility
+
+The constraint layer separates executable recommendations from mathematically attractive but physically invalid solutions. The feasible region explicitly enforces milling-time, speed, and minimum-energy limits during inverse search.
+
+<p align="center">
+  <img src="assets/constraint-feasibility.png" width="760" alt="Physical-constraint feasibility map"><br>
+  <sub>Figure 9. Optimization space before and after physical constraints.</sub>
+</p>
+
+### Cultivar-specific interpretation
+
+Reverse SHAP analysis explains why the optimizer selects different time–speed combinations for indica, glutinous, and japonica rice. Sensory attributes primarily drive milling speed, whereas amylose and RDS more strongly regulate milling duration.
+
+<p align="center">
+  <img src="assets/reverse-shap.png" width="920" alt="Cultivar-specific reverse SHAP analysis"><br>
+  <sub>Figure 10. Cultivar-specific decision drivers for milling speed and time.</sub>
 </p>
 
 Published tables: [forward benchmark](results/forward_model_benchmark.csv) · [inverse recovery](results/inverse_recovery.csv) · [cultivar optimization](results/cultivar_optimization.csv) · [constraint ablation](results/constraint_ablation.csv)
