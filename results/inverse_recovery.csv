@@ -1,0 +1,3 @@
+process_parameter,mean_absolute_error,r2
+Milling time,0.960 s,0.986
+Milling speed,19.522 r/min,0.851

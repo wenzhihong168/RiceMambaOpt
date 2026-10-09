@@ -1,0 +1,6 @@
+model,mean_r2,standard_deviation
+Shared MLP,0.838,0.026
+Transformer,0.911,0.016
+Mamba without MoE,0.949,0.012
+MoE-MLP without Mamba,0.956,0.011
+RiceMambaOpt,0.975,0.008
