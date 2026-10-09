@@ -1,0 +1,7 @@
+scenario,objective,model,milling_time_seconds,milling_speed_rpm,prediction_error,engineering_feasibility
+Maximum resistant starch retention,"RS ≥ 48%; Palatability ≥ 15",Unconstrained model,0.5,7500,Extremely low,Infeasible — speed exceeds limit
+Maximum resistant starch retention,"RS ≥ 48%; Palatability ≥ 15",RiceMambaOpt,22.5,750,Low,Feasible — gentle low-speed
+High-whiteness appearance,"Appearance ≥ 18; RDS ≤ 30%",Unconstrained model,-5,1200,Low,Infeasible — negative time value
+High-whiteness appearance,"Appearance ≥ 18; RDS ≤ 30%",RiceMambaOpt,48,980,Moderate,Feasible — prolonged intensive milling
+Slow digestibility with high palatability,"RDS ≤ 15%; Palatability ≥ 18",Unconstrained model,80,150,Extremely low,Infeasible — time exceeds limit
+Slow digestibility with high palatability,"RDS ≤ 15%; Palatability ≥ 18",RiceMambaOpt,35,780,Low,Feasible — balanced parameter setting

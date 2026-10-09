@@ -1,0 +1,4 @@
+cultivar,type,feasibility,milling_time_seconds,milling_speed_rpm,rds_percent,palatability_score
+Qiuguang,Japonica,Feasible,38.5,1020,21.6,26.5
+Yangfunuo 4,Glutinous,Infeasible,18.0,900,36.1,22.5
+Luhui 6684,Indica,Infeasible,25.0,750,13.5,18.5
