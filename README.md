@@ -59,11 +59,40 @@ RiceMambaOpt links cultivar-aware quality prediction with process-feasibility-co
   <img src="assets/pareto-frontier.png" width="760" alt="RiceMambaOpt Pareto frontier">
 </p>
 
+### Forward prediction
+
+<table>
+  <tr>
+    <td width="50%"><img src="assets/process-quality-correlation.png" alt="Process-quality correlation matrix"></td>
+    <td width="50%"><img src="assets/augmentation-consistency.png" alt="Real and augmented data consistency"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="assets/model-comparison.png" alt="Forward-model comparison"></td>
+    <td width="50%"><img src="assets/forward-prediction.png" alt="Forward prediction and error distributions"></td>
+  </tr>
+</table>
+
+### Inverse design
+
+<table>
+  <tr>
+    <td width="50%"><img src="assets/inverse-agreement.png" alt="Inverse-prediction agreement"></td>
+    <td width="50%"><img src="assets/constraint-feasibility.png" alt="Physical-constraint feasibility map"></td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="assets/reverse-shap.png" width="920" alt="Cultivar-specific reverse SHAP analysis">
+</p>
+
+Published tables: [forward benchmark](results/forward_model_benchmark.csv) · [inverse recovery](results/inverse_recovery.csv) · [cultivar optimization](results/cultivar_optimization.csv) · [constraint ablation](results/constraint_ablation.csv)
+
 ## Codebase blueprint
 
 ```text
 RiceMambaOpt/
-├── assets/                         # architecture and optimization figures
+├── assets/                         # architecture and published result figures
+├── results/                        # machine-readable published tables
 ├── configs/
 │   ├── data/                       # cultivar and split definitions
 │   ├── model/                      # TabDDPM and MoE–Mamba settings
