@@ -17,6 +17,16 @@ RiceMambaOpt links cultivar-aware quality prediction with process-feasibility-co
 
 The central objective is not only to predict how milling changes rice quality, but also to solve the reverse engineering problem: given a desired nutritional and sensory profile, identify a time-speed combination that the equipment can actually execute. The framework therefore combines data augmentation, multi-output regression, uncertainty estimation, multi-objective search, and explicit physical constraints within one process-design pipeline.
 
+Developed in collaboration with **Shanghai Jiao Tong University**, the project treats moderate rice milling as a bidirectional engineering problem. The forward direction estimates the quality profile produced by a cultivar and a set of process conditions. The inverse direction starts from a desired profile and searches for feasible operating parameters. Connecting the two directions allows predictive modeling to support process design rather than remaining a descriptive analysis.
+
+## Research overview
+
+Moderate milling must reconcile objectives that do not necessarily improve together. Increasing mechanical intensity can alter bran removal, appearance, texture, palatability, and starch digestibility, but the response depends on cultivar and on the interaction between milling time and rotational speed. A process setting that improves one quality attribute may degrade another, and two settings with similar total intensity may not be equivalent if their time-speed combinations differ.
+
+The available experimental data are also sparse relative to the continuous operating space. Nine correlated targets must be predicted from a limited number of cultivar-specific observations. Directly optimizing a flexible neural network on this setting risks overfitting, while an unconstrained inverse optimizer can exploit model error by proposing settings outside the equipment range or below the energy required for meaningful processing.
+
+RiceMambaOpt addresses these issues through four linked components: fold-specific tabular diffusion augmentation, a cultivar-aware mixture-of-experts state-space predictor, a heteroscedastic output layer, and a constrained multi-objective optimizer. The forward model supplies a differentiable surrogate of the milling process. The inverse stage searches that surrogate only within a declared feasible region and reports trade-offs instead of presenting one mathematically optimal point as universally best.
+
 ## At a glance
 
 <table align="center">
@@ -50,6 +60,28 @@ The central objective is not only to predict how milling changes rice quality, b
 6. **Constrained inverse design** — multi-start optimization searches the equipment-feasible domain while balancing target error and process constraints.
 7. **Mechanistic interpretation** — SHAP and Pareto analysis expose cultivar-specific process–quality trade-offs.
 
+## Process formulation
+
+### Inputs, outputs, and process dose
+
+Each record contains cultivar identity, milling time, milling speed, and derived process-dose information. The prediction target is a nine-dimensional vector spanning physicochemical properties, in vitro digestibility indicators, and sensory attributes. Modeling the targets jointly allows the network to learn shared process responses while retaining target-specific means and variances.
+
+Cultivar is treated as more than a demographic label. It changes the attainable quality landscape and the sensitivity of each outcome to mechanical processing. The same desired profile may therefore require different settings for indica, glutinous, and japonica rice. Expert routing conditions the forward model on this heterogeneity rather than assuming one universal time-speed response surface.
+
+The process-dose representation describes how duration and rotational speed combine to produce cumulative mechanical exposure. It supports both prediction and feasibility checking. During inverse design, time, speed, and dose constraints are evaluated together so that a candidate is not accepted merely because each variable is individually within range.
+
+### Leakage-controlled data augmentation
+
+TabDDPM is fitted only within the training portion of each fold. Synthetic observations are generated after the split, and validation or holdout records are never used to learn the augmentation distribution. This order matters because a diffusion model fitted on the complete dataset can transfer information about the held-out distribution into training even when the downstream predictor never sees the original holdout rows.
+
+Augmented samples are evaluated against the real training distribution using correlation structure and low-dimensional embeddings. These checks do not prove that every synthetic row is physically realizable, but they help identify whether augmentation has erased cultivar structure, distorted target relationships, or collapsed the diversity of the original observations. The independent holdout and prospective experiment remain real-data evaluations.
+
+### Forward prediction as a probabilistic surrogate
+
+The MoE–Mamba network predicts the conditional mean and log variance of each quality attribute. The mean describes the expected profile at a proposed process setting; the variance expresses target-dependent uncertainty and heteroscedastic error. This distinction is important because some quality outcomes may be measured or predicted more consistently than others across the operating space.
+
+The surrogate is evaluated before it is used for inverse design. High average predictive performance is not sufficient if residuals are biased in the region favored by the optimizer. Predicted-versus-observed plots, residual distributions, target-level metrics, and prospective confirmation are therefore used to assess whether the model remains credible near candidate solutions.
+
 ## Architecture
 
 RiceMambaOpt couples two directions in a single framework: a cultivar-aware MoE–Mamba predicts nine quality attributes from processing conditions, and a constrained optimizer searches backward from desired quality to executable milling parameters.
@@ -60,6 +92,24 @@ TabDDPM expands the sparse tabular design space within each training fold, while
   <img src="assets/architecture.png" alt="RiceMambaOpt architecture"><br>
   <sub>Figure 4. Forward quality prediction and constrained inverse design.</sub>
 </p>
+
+### Structured tokenization and selective state-space learning
+
+Cultivar, time, speed, and derived process descriptors are embedded as structured tokens. Two selective state-space blocks model nonlinear dependencies among the process variables and quality responses while maintaining a compact computation path. The state-space representation is particularly useful for cumulative process effects because it can retain and selectively update latent process information without requiring a large fully connected network.
+
+The expert layer contains cultivar-sensitive submodels and uses sparse top-1 routing. Only one expert is active for a sample, which encourages specialization and limits redundant computation. The router is part of the predictive model and must be evaluated for load balance and stability; an expert that receives too few observations may become poorly estimated even if the aggregate metric remains favorable.
+
+### Multi-output uncertainty head
+
+The final head produces nine means and nine log variances. Training with a heteroscedastic objective allows the model to assign different residual scales to different targets and observations. The variance is not a complete measure of epistemic uncertainty, but it prevents the inverse objective from treating every predicted quality component as equally precise.
+
+During optimization, target deviations can be normalized by their scales so that an attribute with a large numeric range does not dominate the objective. This normalization also makes the multi-target error easier to compare across candidate solutions. The repository's utility layer exposes named objectives and feasibility checks so that the optimization contract remains inspectable.
+
+### Constrained inverse optimization
+
+The inverse stage treats the trained forward model as a surrogate function from process conditions to quality. Multiple starting points are used because the objective is nonlinear and may contain several local optima. Candidate settings are scored by their normalized distance from the desired quality vector together with explicit penalties for violating process constraints.
+
+Hard bounds restrict milling time and speed to the equipment domain. A minimum-dose or energy constraint excludes numerically attractive combinations that are unlikely to produce the intended degree of milling. Multi-objective analysis then retains non-dominated solutions, exposing the trade-off between digestibility and palatability instead of hiding it behind one arbitrary scalar weight.
 
 ## Published results
 
@@ -164,6 +214,56 @@ The cultivar-specific profiles show that the same target vector can lead to diff
 </p>
 
 Published tables: [forward benchmark](results/forward_model_benchmark.csv) · [inverse recovery](results/inverse_recovery.csv) · [cultivar optimization](results/cultivar_optimization.csv) · [constraint ablation](results/constraint_ablation.csv)
+
+## Evaluation design
+
+### Development and independent holdout
+
+The reported dataset contains 500 original experimental observations. Four hundred are used for model development and 100 form an independent holdout. All augmentation and preprocessing operations are fitted within the development data. The holdout is reserved for testing both forward prediction and inverse recovery under conditions not used to fit the surrogate.
+
+Forward performance is reported for each of the nine targets and summarized by the mean coefficient of determination. The complete model reaches a mean R² of 0.975 ± 0.008, compared with 0.911 ± 0.016 for the Transformer baseline, 0.949 ± 0.012 for Mamba without the expert layer, and 0.956 ± 0.011 for the MoE-MLP without Mamba. These comparisons isolate the contribution of selective state-space modeling and cultivar-aware routing under the reported split.
+
+### Inverse recovery
+
+Inverse recovery begins from an observed quality profile and asks whether the optimizer can reconstruct the process conditions that generated it. This is stricter than forward prediction because small surrogate errors can be amplified when the model is optimized backward. Milling-time recovery achieves an MAE of 0.960 seconds and R² of 0.986 on the holdout, while speed recovery is less precise with an MAE of 19.522 r/min and R² of 0.851.
+
+The difference between time and speed recovery suggests that multiple speeds may produce similar profiles in parts of the operating range. A lower speed R² therefore should not automatically be read as complete inverse failure; it may reflect a wider equivalence region. Agreement plots and feasibility checks help distinguish interchangeable settings from truly implausible recommendations.
+
+### Prospective confirmation
+
+The prospective evaluation tests 12 target profiles using 36 experimental samples. Ten of the 12 profiles satisfy the predefined target-attainment criteria, with a joint normalized RMSE of 6.2 ± 1.1%. This experiment is important because it evaluates process settings selected by the inverse system rather than only reusing historical observations.
+
+The prospective sample remains limited and should be interpreted as an initial confirmation of the inverse-design workflow. It does not establish robustness across all cultivars, equipment, batches, storage conditions, or target combinations. Broader prospective studies should enrich the regions in which the optimizer predicts high value but the training data are sparse.
+
+### Constraint ablation
+
+The constraint analysis compares the feasible optimizer with versions in which physical restrictions are relaxed. Without constraints, the numerical objective can be improved by moving toward negative durations, unsupported speeds, or insufficient process dose. These solutions reveal a general risk in surrogate-based optimization: the optimizer actively searches for regions where the model is weak.
+
+Explicit feasibility rules convert the output from an unconstrained mathematical optimum into an executable engineering recommendation. The cost is that the best feasible solution may have slightly larger target error. This trade-off is desirable because a physically impossible low-error point has no experimental value.
+
+## Interpreting the findings
+
+The forward results show that state-space learning and cultivar-aware expert routing contribute complementary information. Mamba represents cumulative and nonlinear process effects, whereas the expert layer adapts those effects to cultivar-specific response surfaces. Their joint improvement across physicochemical, digestibility, and sensory targets suggests that the gain is not confined to one outcome group.
+
+The Pareto analysis reframes optimization as decision support. Rapidly digestible starch and palatability cannot be assumed to improve together, so a single optimum depends on how the objectives are weighted. Presenting the non-dominated frontier allows researchers to choose a balance region that matches the intended product rather than accepting a hidden preference encoded by the model developer.
+
+Reverse SHAP analysis further shows how target attributes influence selected process parameters. These attributions describe the learned inverse decision surface and should not be treated as mechanistic proof. Their value is diagnostic: they reveal whether cultivar, digestibility, appearance, and sensory objectives affect time and speed in plausible directions and help identify recommendations that warrant experimental review.
+
+## Research contribution
+
+RiceMambaOpt contributes an integrated forward-and-inverse framework for food-process design. It combines sparse-data augmentation, multi-target probabilistic prediction, cultivar-aware routing, constrained search, and prospective evaluation within one traceable workflow.
+
+The work also makes physical feasibility part of the model specification. Many inverse-learning studies report target matching without verifying whether the proposed control variables are executable. Here, process bounds and minimum-dose conditions are explicit, named, and evaluated through ablation.
+
+A third contribution is the separation of prediction, optimization, and experimental confirmation. Strong forward R² supports the surrogate but does not prove inverse validity; holdout recovery tests reversibility; and prospective profiles test whether recommended settings produce the intended result in new experiments. These evidence layers answer different questions and are presented separately.
+
+## Scope and limitations
+
+The current experiments cover a finite set of cultivars, milling conditions, quality assays, and equipment settings. The learned response surface may not transfer to a new machine, grain batch, storage state, moisture level, or cultivar without recalibration. Synthetic augmentation cannot replace experimental coverage of regions that are absent from the original design.
+
+The nine targets do not capture every nutritional, sensory, economic, or manufacturing consideration. Objective weights and feasibility thresholds must be chosen for the intended application. The optimizer should not be used beyond the declared process domain, and high-uncertainty or boundary solutions should be confirmed experimentally before operational use.
+
+The public repository provides validated process records, multi-target metrics, named constraints, inverse-objective utilities, figures, result tables, and the planned codebase structure. It does not include the complete trained TabDDPM/MoE–Mamba implementation, checkpoints, or the underlying experimental dataset.
 
 ## Codebase blueprint
 
